@@ -13,3 +13,7 @@ out/
 # Logs and OS clutter
 *.log
 .DS_Store
+
+#Prisma
+generated/
+*.db
