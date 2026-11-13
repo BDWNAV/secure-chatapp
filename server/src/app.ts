@@ -1,6 +1,8 @@
 import express from "express";
 import { createServer } from "node:http";
 import { Server } from "socket.io";
+import cors from "cors";
+import authRouter from "./routes/auth";
 
 const app = express();
 
@@ -11,9 +13,15 @@ const io = new Server(server, {
   }
 })
 
+app.use(express.json({ limit: "2kb" }));
+app.use(cors({ origin: "http://localhost:3000" }));
+
 app.get("/", (req, res) => {
   res.send("Hello");
 });
+
+// Route configuration
+app.use("/auth", authRouter);
 
 io.on("connection", (socket) => {
   console.log("A new connection");
