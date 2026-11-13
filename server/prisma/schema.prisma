@@ -12,23 +12,66 @@ datasource db {
   provider = "sqlite"
 }
 
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
 enum ChatType {
   DIRECT
   GROUP
 }
 
 model User {
-  id String @id @default(uuid())
-  email String @unique
-  name String
-  username String @unique
-  passwordHash String 
-  createdAt DateTime @default(now())
+  id                     String       @id @default(uuid())
+  email                  String       @unique
+  name                   String
+  username               String       @unique
+  passwordHash           String
+  createdAt              DateTime     @default(now())
+  chats                  ChatMember[]
+  messages               Message[]
+  sentFriendRequests     Friendship[] @relation("SentFriendRequests")
+  receivedFriendRequests Friendship[] @relation("ReceivedFriendRequests")
 }
 
 model Chat {
-  id String @id @default(uuid())
-  type ChatType 
-  name String?
-  createdAt DateTime @default(now())
+  id        String       @id @default(uuid())
+  type      ChatType
+  name      String?
+  createdAt DateTime     @default(now())
+  users     ChatMember[]
+  messages  Message[]
+}
+
+model ChatMember {
+  userId   String
+  user     User     @relation(fields: [userId], references: [id])
+  chatId   String
+  chat     Chat     @relation(fields: [chatId], references: [id])
+  joinedAt DateTime @default(now())
+
+  @@id([userId, chatId])
+}
+
+model Message {
+  id       String   @id @default(uuid())
+  senderId String
+  sender   User     @relation(fields: [senderId], references: [id])
+  chatId   String
+  chat     Chat     @relation(fields: [chatId], references: [id])
+  content  String
+  sentAt   DateTime @default(now())
+}
+
+model Friendship {
+  requesterId String
+  requester   User             @relation("SentFriendRequests", fields: [requesterId], references: [id])
+  receiverId  String
+  receiver    User             @relation("ReceivedFriendRequests", fields: [receiverId], references: [id])
+  status      FriendshipStatus @default(PENDING)
+  createdAt   DateTime         @default(now())
+
+  @@id([requesterId, receiverId])
 }
