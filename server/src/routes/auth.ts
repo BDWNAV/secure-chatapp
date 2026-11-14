@@ -1,9 +1,17 @@
+import "dotenv/config";
 import express from "express";
 import argon2 from "argon2";
 import { prisma } from "../lib/prisma";
 import { Prisma } from "../../generated/prisma/client";
+import jwt from "jsonwebtoken";
 
 const router = express.Router();
+
+const JWT_SECRET = process.env["JWT_SECRET"];
+
+if(!JWT_SECRET) {
+  throw new Error("JWT Secret could not be found make sure it is in the .env file!");
+}
 
 router.post("/register", async (req, res) => {
   if(typeof req.body === "undefined") {
@@ -67,6 +75,44 @@ router.post("/register", async (req, res) => {
     console.error(error);
 
     return res.status(500).json({ "error": "Error occured while registering this user" });
+  }
+});
+
+router.post("/login", async (req, res) => {
+  if(typeof req.body === "undefined") {
+    return res.status(400).json({ "error": "Body could not be found!" });
+  }
+
+  const { username, password } = req.body;
+
+  if(typeof username !==  "string" || typeof password !==  "string") {
+    return res.status(400).json({ "error": "One of the fields provided is not a string!" });
+  }
+
+  const normalisedUsername = username.trim().toLowerCase();
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: {
+        username: normalisedUsername
+      }
+    });
+
+    if(!user) {
+      return res.status(401).json({ "error": "Invalid username or password" });
+    }
+
+    const passwordVerification = await argon2.verify(user.passwordHash, password);
+
+    if(!passwordVerification) {
+      return res.status(401).json({ "error": "Invalid username or password" });
+    }
+
+    const token = jwt.sign({ id: user.id, name: user.name, username: user.username }, JWT_SECRET, { algorithm: "HS256", expiresIn: "15m" });
+  
+    return res.status(200).json({ "token": token });
+  } catch (error) {
+    res.status(500).json({ "error": "Internal server error!" });
   }
 });
 
