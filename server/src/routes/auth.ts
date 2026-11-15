@@ -1,17 +1,12 @@
 import "dotenv/config";
-import express from "express";
+import express, { type CookieOptions } from "express";
 import argon2 from "argon2";
 import { prisma } from "../lib/prisma";
 import { Prisma } from "../../generated/prisma/client";
 import jwt from "jsonwebtoken";
+import { JWT_SECRET, AUTH_COOKIE_NAME, AUTH_COOKIE_OPTIONS, ACCESS_TOKEN_SECONDS, CLIENT_ORIGIN } from "../lib/config";
 
 const router = express.Router();
-
-const JWT_SECRET = process.env["JWT_SECRET"];
-
-if(!JWT_SECRET) {
-  throw new Error("JWT Secret could not be found make sure it is in the .env file!");
-}
 
 router.post("/register", async (req, res) => {
   if(typeof req.body === "undefined") {
@@ -95,6 +90,10 @@ router.post("/login", async (req, res) => {
     const user = await prisma.user.findUnique({
       where: {
         username: normalisedUsername
+      },
+      select: {
+        id: true,
+        passwordHash: true
       }
     });
 
@@ -108,12 +107,19 @@ router.post("/login", async (req, res) => {
       return res.status(401).json({ "error": "Invalid username or password" });
     }
 
-    const token = jwt.sign({ id: user.id, name: user.name, username: user.username }, JWT_SECRET, { algorithm: "HS256", expiresIn: "15m" });
+    const token = jwt.sign({ sub: user.id }, JWT_SECRET, { algorithm: "HS256", expiresIn: ACCESS_TOKEN_SECONDS });
   
-    return res.status(200).json({ "token": token });
+    return res.status(200).cookie(AUTH_COOKIE_NAME, token, { ...AUTH_COOKIE_OPTIONS, maxAge: ACCESS_TOKEN_SECONDS * 1000 }).json({ "success": true });
   } catch (error) {
-    res.status(500).json({ "error": "Internal server error!" });
+    console.error(error);
+
+    return res.status(500).json({ "error": "Internal server error!" });
   }
+});
+
+router.post("/logout", (req, res) => {
+  res.clearCookie(AUTH_COOKIE_NAME, AUTH_COOKIE_OPTIONS);
+  return res.status(204).end();
 });
 
 export default router;
