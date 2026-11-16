@@ -86,10 +86,30 @@ io.on("connection", (socket) => {
   console.log("A new connection");
 
   socket.on("chat_message", (msg) => {
-    console.log("Message is " + msg)
+    if(typeof msg !== "string") {
+      return;
+    }
 
-    io.emit("chat_message", msg);
-  })
+    const messageTrimmed = msg.trim();
+
+    if(messageTrimmed === "") {
+      return;
+    }
+
+    if(messageTrimmed.length > 1000) {
+      return;
+    }
+
+    const timestamp = new Date().toISOString;
+
+    const message = {
+      content: messageTrimmed,
+      sender: socket.data.user,
+      sentAt: timestamp
+    }
+
+    io.emit("chat_message", message);
+  });
 });
 
 server.listen(3001, () => {
