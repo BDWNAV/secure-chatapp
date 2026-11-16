@@ -108,6 +108,8 @@ io.on("connection", (socket) => {
       sentAt: timestamp
     }
 
+    console.log(message);
+
     io.emit("chat_message", message);
   });
 });
